@@ -120,6 +120,7 @@ import cugxdy.util.concurrent.locks.ReentrantReadWriteLock;
  * @since 1.5
  * @author Doug Lea
  */
+// Git≤‚ ‘÷–
 public interface ReadWriteLock {
     /**
      * Returns the lock used for reading.
