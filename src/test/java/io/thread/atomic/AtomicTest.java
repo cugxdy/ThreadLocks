@@ -8,7 +8,7 @@ public class AtomicTest {
 	@Test
 	public void test() {
 		AtomicInteger id = new AtomicInteger(1);
-		System.out.println(id.get());
+		System.out.println(id.get() + "ppppppppppppppp");
 		
 	}
 }
