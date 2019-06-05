@@ -36,6 +36,8 @@
 package cugxdy.util.concurrent.atomic;
 import java.util.function.IntUnaryOperator;
 import cugxdy.util.concurrent.atomic.AtomicInteger;
+
+import java.lang.reflect.Field;
 import java.util.function.IntBinaryOperator;
 import sun.misc.Unsafe;
 
@@ -56,11 +58,17 @@ public class AtomicInteger extends Number implements java.io.Serializable {
     private static final long serialVersionUID = 6214790243416807050L;
 
     // setup to use Unsafe.compareAndSwapInt for updates
-    private static final Unsafe unsafe = Unsafe.getUnsafe();
+    private static final Unsafe unsafe ;
     private static final long valueOffset;
 
     static {
         try {
+        	
+        	Field singleoneInstanceField = Unsafe.class.getDeclaredField("theUnsafe");
+        	singleoneInstanceField.setAccessible(true);
+        	unsafe = (Unsafe) singleoneInstanceField.get(null);
+        	
+        	
             valueOffset = unsafe.objectFieldOffset
                 (AtomicInteger.class.getDeclaredField("value"));
         } catch (Exception ex) { throw new Error(ex); }
