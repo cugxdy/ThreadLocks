@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
-public class Join {
+public class Join { 
 	
 	@Test
 	public void main() throws InterruptedException {
