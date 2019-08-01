@@ -219,6 +219,7 @@ import cugxdy.util.concurrent.TimeUnit;
  * @since 1.5
  * @author Doug Lea
  */
+@SuppressWarnings("restriction")
 public class ReentrantReadWriteLock
         implements ReadWriteLock, java.io.Serializable {
     private static final long serialVersionUID = -6992448646407690164L;
@@ -529,7 +530,8 @@ public class ReentrantReadWriteLock
             // 取高16位读锁标志位。
             int r = sharedCount(c);
             // readerShouldBlock()用来判断当前线程是否应该被阻塞
-            // 非公平锁: readerShouldBlock() -> true:头结点的第二个为独占模式, false:头结点的第二个为共享模式
+            // 非公平锁: readerShouldBlock() -> 
+            // true:头结点的第二个为独占模式, false:头结点的第二个为共享模式
             if (!readerShouldBlock() &&
                 r < MAX_COUNT && // MAX_COUNT为获取读锁的最大数量，为16位的最大值
                 compareAndSetState(c, c + SHARED_UNIT)) {
@@ -553,6 +555,7 @@ public class ReentrantReadWriteLock
                 }
                 return 1;
             }
+            
             // 第一次获取读锁失败，有两种情况：
             // 1)没有写锁被占用时，尝试通过一次CAS去获取锁时，更新失败（说明有其他读锁在申请）
             // 2)当前线程占有写锁，并且有其他写锁在当前线程的下一个节点等待获取写锁，
@@ -601,6 +604,7 @@ public class ReentrantReadWriteLock
                             return -1;
                     }
                 }
+                
                 // 查看是否达到最大计数器
                 if (sharedCount(c) == MAX_COUNT)
                     throw new Error("Maximum lock count exceeded");
@@ -796,6 +800,7 @@ public class ReentrantReadWriteLock
         	// 判断同步队列中是否存在排队的元素
             return hasQueuedPredecessors();
         }
+        
         final boolean readerShouldBlock() {
         	// 判断同步队列中是否存在排队的元素
             return hasQueuedPredecessors();

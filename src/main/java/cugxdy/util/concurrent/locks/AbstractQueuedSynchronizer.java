@@ -385,6 +385,7 @@ public abstract class AbstractQueuedSynchronizer
      * expert group, for helpful ideas, discussions, and critiques
      * on the design of this class.
      */
+    // 同步队列与等待队列节点元素
     static final class Node {
         /** Marker to indicate a node is waiting in shared mode */
     	// 共享模式
@@ -412,7 +413,7 @@ public abstract class AbstractQueuedSynchronizer
          * waitStatus value to indicate the next acquireShared should
          * unconditionally propagate
          */
-        // 与共享模式相关，在共享模式中，该状态标识结点的线程处于可运行状态。
+        // 下一次共享式同步状态获取将会无条件地被传播下去
         static final int PROPAGATE = -3;
 
         /**
@@ -462,7 +463,7 @@ public abstract class AbstractQueuedSynchronizer
          * cancelled thread never succeeds in acquiring, and a thread only
          * cancels itself, not any other node.
          */
-        // 前置结点
+        // 同步队列前置结点
         volatile Node prev;
 
         /**
@@ -478,7 +479,7 @@ public abstract class AbstractQueuedSynchronizer
          * point to the node itself instead of null, to make life
          * easier for isOnSyncQueue.
          */
-        // 后置结点
+        // 同步队列后置结点
         volatile Node next;
 
         /**
@@ -498,6 +499,7 @@ public abstract class AbstractQueuedSynchronizer
          * we save a field by using special value to indicate shared
          * mode.
          */
+        // 等待队列后继节点
         Node nextWaiter;
 
         /**
@@ -523,6 +525,7 @@ public abstract class AbstractQueuedSynchronizer
                 return p;
         }
 
+        // 被使用在同步队列初始化时
         Node() {    // Used to establish initial head or SHARED marker
         }
 
@@ -543,14 +546,14 @@ public abstract class AbstractQueuedSynchronizer
      * If head exists, its waitStatus is guaranteed not to be
      * CANCELLED.
      */
-    // 头结点
+    // 同步队列头结点
     private transient volatile Node head;
 
     /**
      * Tail of the wait queue, lazily initialized.  Modified only via
      * method enq to add new wait node.
      */
-    // 尾节点
+    // 同步队列尾节点
     private transient volatile Node tail;
 
     /**
@@ -564,7 +567,7 @@ public abstract class AbstractQueuedSynchronizer
      * This operation has memory semantics of a {@code volatile} read.
      * @return current state value
      */
-    // 获取锁标记位
+    // 获取锁标记位(读volatile变量)
     protected final int getState() {
         return state;
     }
@@ -574,7 +577,7 @@ public abstract class AbstractQueuedSynchronizer
      * This operation has memory semantics of a {@code volatile} write.
      * @param newState the new state value
      */
-    // 设置锁标志位
+    // 设置锁标志位(写volatile变量)
     protected final void setState(int newState) {
         state = newState;
     }
@@ -591,7 +594,8 @@ public abstract class AbstractQueuedSynchronizer
      *         value was not equal to the expected value.
      */
     // 原子性的设置state值
-    protected final boolean compareAndSetState(int expect, int update) {
+    @SuppressWarnings("restriction")
+	protected final boolean compareAndSetState(int expect, int update) {
         // See below for intrinsics setup to support this
     	// CAS 原子性设置预期值
         return unsafe.compareAndSwapInt(this, stateOffset, expect, update);
@@ -604,7 +608,7 @@ public abstract class AbstractQueuedSynchronizer
      * rather than to use timed park. A rough estimate suffices
      * to improve responsiveness with very short timeouts.
      */
-    // 超时门限
+    // 当超时时间太短,使用自旋等待获取锁
     static final long spinForTimeoutThreshold = 1000L;
 
     /**
@@ -612,7 +616,7 @@ public abstract class AbstractQueuedSynchronizer
      * @param node the node to insert
      * @return node's predecessor
      */
-    // 添加节点至链表尾部
+    // 将并发添加尾节点的请求使用"CAS"变得串行化了
     private Node enq(final Node node) {
     	// CAS"自旋"，直到成功加入队尾
         for (;;) {
@@ -637,6 +641,7 @@ public abstract class AbstractQueuedSynchronizer
      * @param mode Node.EXCLUSIVE for exclusive, Node.SHARED for shared
      * @return the new node
      */
+    // 将获取锁失败的节点存入同步队列中等待被唤醒
     private Node addWaiter(Node mode) {
     	// 以给定模式构造结点。mode有两种:EXCLUSIVE(独占)和SHARED(共享):mode为下一个元素节点
         Node node = new Node(Thread.currentThread(), mode);
@@ -694,6 +699,7 @@ public abstract class AbstractQueuedSynchronizer
          * non-cancelled successor.
          */
         Node s = node.next; // 找到下一个需要唤醒的结点s
+        
         if (s == null || s.waitStatus > 0) { // 如果为空或已取消
             s = null;
             // 从链表尾部开始遍历元素节点。这里的意思是找出链表从头部开始第一个处于正常状态下的节点
@@ -769,15 +775,16 @@ public abstract class AbstractQueuedSynchronizer
          * and
          *   The next node is waiting in shared mode,
          *     or we don't know, because it appears null
-         *
+         * 
          * The conservatism in both of these checks may cause
          * unnecessary wake-ups, but only when there are multiple
          * racing acquires/releases, so most need signals now or soon
          * anyway.
          */
-        // 如果还有剩余量，继续唤醒下一个邻居线程
+        // 如果还有剩余量,继续唤醒下一个邻居线程
         if (propagate > 0 || h == null || h.waitStatus < 0 ||
             (h = head) == null || h.waitStatus < 0) {
+        	
             Node s = node.next;
             if (s == null || s.isShared())
                 doReleaseShared();
@@ -898,7 +905,7 @@ public abstract class AbstractQueuedSynchronizer
     /**
      * Convenience method to interrupt current thread.
      */
-    // 对当前运行线程发生中断请求
+    // 对当前运行线程进行中断
     static void selfInterrupt() {
         Thread.currentThread().interrupt();
     }
@@ -937,6 +944,7 @@ public abstract class AbstractQueuedSynchronizer
     // 被唤醒后，看自己是不是有资格能拿到号。如果拿到，head指向当前结点,
     // 并返回从入队到拿到号的整个过程中是否被中断过；如果没拿到，继续流程1.
     final boolean acquireQueued(final Node node, int arg) {
+    	
     	// 标记是否成功拿到资源
         boolean failed = true;
         try {
@@ -1034,11 +1042,12 @@ public abstract class AbstractQueuedSynchronizer
                 }
                 // 获取超时时间
                 nanosTimeout = deadline - System.nanoTime();
+                // 超时返回
                 if (nanosTimeout <= 0L)
                     return false;
                 // 阻塞当前运行线程指定时间
                 if (shouldParkAfterFailedAcquire(p, node) &&
-                    nanosTimeout > spinForTimeoutThreshold)
+                    nanosTimeout > spinForTimeoutThreshold) // 当小于1000ns时,直接for循环,不用阻塞
                     LockSupport.parkNanos(this, nanosTimeout);
                 
                 // 判断线程是否中断过,抛出异常。
@@ -1063,8 +1072,8 @@ public abstract class AbstractQueuedSynchronizer
             boolean interrupted = false;//等待过程中是否被中断过的标志
             for (;;) {
                 final Node p = node.predecessor();//前驱
-                if (p == head) {//如果到head的下一个，因为head是拿到资源的线程，此时node被唤醒，很可能是head用完资源来唤醒自己的
-                	//尝试获取资源
+                if (p == head) { //如果到head的下一个，因为head是拿到资源的线程，此时node被唤醒，很可能是head用完资源来唤醒自己的
+                	// 尝试获取资源
                 	int r = tryAcquireShared(arg);
                     if (r >= 0) {
                     	//将head指向自己，还有剩余资源可以再唤醒之后的线程
@@ -1160,6 +1169,7 @@ public abstract class AbstractQueuedSynchronizer
                     nanosTimeout > spinForTimeoutThreshold)
                 	// 阻塞指定时间
                     LockSupport.parkNanos(this, nanosTimeout);
+                
                 // 判断线程是否中断过
                 if (Thread.interrupted())
                     throw new InterruptedException();
@@ -1401,6 +1411,8 @@ public abstract class AbstractQueuedSynchronizer
     // 释放锁
     public final boolean release(int arg) {
     	// tryRelease的返回值表示的是当前是否可以被其它线程获取
+    	// true:表示可以锁可以被其它线程获取
+    	// false:表示可以锁被占用
         if (tryRelease(arg)) {
             Node h = head;  // 找到头结点
             if (h != null && h.waitStatus != 0)
@@ -1717,7 +1729,8 @@ public abstract class AbstractQueuedSynchronizer
      */
     // 返回以Thread为元素的ArrayList对象
     public final Collection<Thread> getQueuedThreads() {
-        ArrayList<Thread> list = new ArrayList<Thread>();
+        
+    	ArrayList<Thread> list = new ArrayList<Thread>();
         for (Node p = tail; p != null; p = p.prev) {
             Thread t = p.thread;
             // 当线程对象不为空时,即添加至ArrayList对象中
@@ -2024,8 +2037,11 @@ public abstract class AbstractQueuedSynchronizer
         private static final long serialVersionUID = 1173984872572414699L;
         
         /** First node of condition queue. */
+        // 等待队列头元素
         private transient Node firstWaiter;
+        
         /** Last node of condition queue. */
+        // 等待队列尾元素
         private transient Node lastWaiter;
 
         /**
@@ -2224,6 +2240,7 @@ public abstract class AbstractQueuedSynchronizer
          * before signalled, REINTERRUPT if after signalled, or
          * 0 if not interrupted.
          */
+        // 判断是否什么时候发生的中断
         private int checkInterruptWhileWaiting(Node node) {
         	// interrupted中断擦除方法:判断线程是否中断过
             return Thread.interrupted() ?
@@ -2235,6 +2252,7 @@ public abstract class AbstractQueuedSynchronizer
          * Throws InterruptedException, reinterrupts current thread, or
          * does nothing, depending on mode.
          */
+        // 处理中断发生场景
         private void reportInterruptAfterWait(int interruptMode)
             throws InterruptedException {
         	// 如果是THROW_IE的话抛出异常
@@ -2278,7 +2296,7 @@ public abstract class AbstractQueuedSynchronizer
                     break;
             }
             
-            // 尝试去获取锁
+            // 尝试去获取锁 ,在这个时候线程处于同步队列中等待获取锁
             if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
                 interruptMode = REINTERRUPT;
             if (node.nextWaiter != null) // clean up if cancelled
@@ -2316,6 +2334,7 @@ public abstract class AbstractQueuedSynchronizer
             // 当调用await方法时,首先判断是否存在同步队列中
             // 如果不存在同步队列中,就会阻塞,响应中断(即发生也会退出循环)
             while (!isOnSyncQueue(node)) {
+            	
                 if (nanosTimeout <= 0L) {
                 	// 将节点添加至同步队列中,直至成功。
                     transferAfterCancelledWait(node);
@@ -2324,6 +2343,7 @@ public abstract class AbstractQueuedSynchronizer
                 if (nanosTimeout >= spinForTimeoutThreshold)
                 	// 阻塞指定时间
                     LockSupport.parkNanos(this, nanosTimeout);
+                
                 // 当被唤醒时,将会判断是否为中断唤醒。
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;
@@ -2377,6 +2397,7 @@ public abstract class AbstractQueuedSynchronizer
                     timedout = transferAfterCancelledWait(node);
                     break;
                 }
+                
                 LockSupport.parkUntil(this, abstime);
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;
@@ -2433,6 +2454,7 @@ public abstract class AbstractQueuedSynchronizer
             final long deadline = System.nanoTime() + nanosTimeout;
             boolean timedout = false;
             int interruptMode = 0;
+            
             // 判断节点是否处于同步队列中
             // 当调用await方法时,首先判断是否存在同步队列中
             // 如果不存在同步队列中,就会阻塞,响应中断(即发生也会退出循环)
@@ -2443,8 +2465,10 @@ public abstract class AbstractQueuedSynchronizer
                 }
                 if (nanosTimeout >= spinForTimeoutThreshold)
                     LockSupport.parkNanos(this, nanosTimeout);
+                // 检查中断信号发生wait之前还是之后
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;
+                
                 nanosTimeout = deadline - System.nanoTime();
             }
             // 尝试去获取锁资源,在未获得锁时，将会阻塞自己并放进同步队列尾部
@@ -2455,6 +2479,7 @@ public abstract class AbstractQueuedSynchronizer
                 unlinkCancelledWaiters();
             if (interruptMode != 0)
             	// 如果为REINTERRUPT模式的话,就调用中断方法
+            	// 如果为THROW_IE模式,表示线程被中断唤醒,需要将中断位清空并抛出异常,让上层业务逻辑处理
                 reportInterruptAfterWait(interruptMode);
             return !timedout;
         }

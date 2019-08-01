@@ -11,11 +11,16 @@ public class TwinsLock implements Lock{
 	
 	private static final class Sync extends AbstractQueuedSynchronizer{
 		
+		public Sync() {
+			// TODO Auto-generated constructor stub
+			setState(2);
+		}
+		
 		@Override
 		public int tryAcquireShared(int arg) {
 			for(;;) {
-				int current = getState();
-				int newCount = current - arg;
+				int current = getState(); 
+				int newCount = current - arg; 
 				if(newCount < 0 || compareAndSetState(current, newCount)) {
 					return newCount;
 				}
