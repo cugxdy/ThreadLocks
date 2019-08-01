@@ -277,10 +277,12 @@ public class ReentrantReadWriteLock
          * The lower one representing the exclusive (writer) lock hold count,
          * and the upper the shared (reader) hold count.
          */
-        
+        // 2^16 = 65536
         static final int SHARED_SHIFT   = 16;  // 16 
         static final int SHARED_UNIT    = (1 << SHARED_SHIFT); // 65536
+        // 二进制形式:1111111111111111
         static final int MAX_COUNT      = (1 << SHARED_SHIFT) - 1;// 65535
+        // 二进制形式:1111111111111111
         static final int EXCLUSIVE_MASK = (1 << SHARED_SHIFT) - 1;// 65535
 
         /** Returns the number of shared holds represented in count  */
@@ -387,6 +389,8 @@ public class ReentrantReadWriteLock
          * because of policy for overtaking other waiting threads.
          */
         // 写阻塞
+        // 在非公平锁时:返回false,即允许抢占式获取锁,不管同步队列中是否存在等待线程
+        // 在公平锁时:判断队列中是否存在等待锁的线程,如果存在返回true,不存在返回false
         abstract boolean writerShouldBlock();
 
         /*
@@ -401,6 +405,7 @@ public class ReentrantReadWriteLock
         	// 判断当前锁持有者是否与运行线程相同
             if (!isHeldExclusively())
                 throw new IllegalMonitorStateException();
+
             int nextc = getState() - releases;
             // 判断同步状态的低16位(写同步状态)是否为0,如果为0则返回true,否则返回false.
             boolean free = exclusiveCount(nextc) == 0;
@@ -433,7 +438,14 @@ public class ReentrantReadWriteLock
             // 获取锁标志位
             int c = getState();
             int w = exclusiveCount(c); // 取同步状态state的低16位，写同步状态
+            
+            // 这里存在几种情况:说明一下
+            // 1、c!=0:表示存在读写锁,不管是哪个
+            // w == 0 : 说明只存在读锁,所以在只有读锁的情况下,是不能获取写锁的,保证内存可见性
+            // current = getExclusiveOwnerThread():
+            // 这种情况就是,在上层业务逻辑中,存在线程获取写锁,然后在获取读锁,然后写锁(具有可重入性)
             if (c != 0) {
+            	
                 // (Note: if c != 0 and w == 0 then shared count != 0)
             	// 存在读锁或当前线程不是已获取写锁的线程，返回false
                 if (w == 0 || current != getExclusiveOwnerThread())  // ??????????? 
@@ -443,7 +455,7 @@ public class ReentrantReadWriteLock
                 if (w + exclusiveCount(acquires) > MAX_COUNT)
                     throw new Error("Maximum lock count exceeded");
                 // Reentrant acquire
-                // 设置标识位
+                // 设置标识位 (可重入获取锁)
                 setState(c + acquires);
                 return true;
             }
@@ -452,6 +464,7 @@ public class ReentrantReadWriteLock
             if (writerShouldBlock() ||
                 !compareAndSetState(c, c + acquires))
                 return false;
+            
             // 设置线程持有者
             setExclusiveOwnerThread(current);
             return true;
@@ -460,6 +473,7 @@ public class ReentrantReadWriteLock
         protected final boolean tryReleaseShared(int unused) {
         	// 获取当前运行线程
             Thread current = Thread.currentThread();
+            
             if (firstReader == current) {
                 // assert firstReaderHoldCount > 0;
             	// 判断firstReaderHoldCount是否等于1
@@ -484,14 +498,18 @@ public class ReentrantReadWriteLock
                 }
                 --rh.count;
             }
+            
             for (;;) {
                 int c = getState();
+                
                 int nextc = c - SHARED_UNIT;
                 // 设置读锁标识位
                 if (compareAndSetState(c, nextc))
                     // Releasing the read lock has no effect on readers,
                     // but it may allow waiting writers to proceed if
                     // both read and write locks are now free.
+                	// 这里为什么判断==0,因为当nextc==0时,即同步器锁未被任何线程获取
+                	// 因此需要去唤醒同步队列中的线程
                     return nextc == 0;
             }
         }
@@ -521,17 +539,19 @@ public class ReentrantReadWriteLock
         	
             Thread current = Thread.currentThread();
             int c = getState();
+            
             // exclusiveCount(c)取低16位写锁标志位。
             // 在存在写锁的前提下,只有持有写锁的线程能获取读锁
             if (exclusiveCount(c) != 0 &&
                 getExclusiveOwnerThread() != current)
-                return -1;
+                return -1; // 进入同步队列中去阻塞
             
             // 取高16位读锁标志位。
             int r = sharedCount(c);
             // readerShouldBlock()用来判断当前线程是否应该被阻塞
             // 非公平锁: readerShouldBlock() -> 
             // true:头结点的第二个为独占模式, false:头结点的第二个为共享模式
+            
             if (!readerShouldBlock() &&
                 r < MAX_COUNT && // MAX_COUNT为获取读锁的最大数量，为16位的最大值
                 compareAndSetState(c, c + SHARED_UNIT)) {
@@ -553,6 +573,7 @@ public class ReentrantReadWriteLock
                     // 将获取读锁的记录放在线程的私有数据中
                     rh.count++;
                 }
+                
                 return 1;
             }
             
@@ -575,6 +596,7 @@ public class ReentrantReadWriteLock
              * retries and lazily reading hold counts.
              */
             HoldCounter rh = null;
+            // 自旋获取锁
             for (;;) {
             	// 获取状态标识为
                 int c = getState();
@@ -641,6 +663,12 @@ public class ReentrantReadWriteLock
         	// 尝试获取写锁
             Thread current = Thread.currentThread();
             int c = getState();
+            
+            // 这里存在几种情况:说明一下
+            // 1、c!=0:表示存在读写锁,不管是哪个
+            // w == 0 : 说明只存在读锁,所以在只有读锁的情况下,是不能获取写锁的,保证内存可见性
+            // current = getExclusiveOwnerThread():
+            // 这种情况就是,在上层业务逻辑中,存在线程获取写锁,然后在获取读锁,然后写锁(具有可重入性)
             if (c != 0) {
                 int w = exclusiveCount(c);
                 if (w == 0 || current != getExclusiveOwnerThread())
@@ -648,6 +676,7 @@ public class ReentrantReadWriteLock
                 if (w == MAX_COUNT)
                     throw new Error("Maximum lock count exceeded");
             }
+            
             // CAS设置锁标识位
             if (!compareAndSetState(c, c + 1))
                 return false;
@@ -759,7 +788,8 @@ public class ReentrantReadWriteLock
          */
         private void readObject(java.io.ObjectInputStream s)
             throws java.io.IOException, ClassNotFoundException {
-            s.defaultReadObject();
+            
+        	s.defaultReadObject();
             readHolds = new ThreadLocalHoldCounter();
             // 设置为无锁状态
             setState(0); // reset to unlocked state
