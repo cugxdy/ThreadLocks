@@ -49,6 +49,7 @@ import cugxdy.util.concurrent.FutureTask;
  * @author Doug Lea
  * @param <V> The result type returned by this Future's {@code get} method
  */
+// ¶à¼Ì³Ð½Ó¿Ú(Runnable,Future)
 public interface RunnableFuture<V> extends Runnable, Future<V> {
     /**
      * Sets this Future to the result of its computation
