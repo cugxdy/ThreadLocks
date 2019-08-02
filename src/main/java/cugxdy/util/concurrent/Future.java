@@ -5,6 +5,7 @@ import cugxdy.util.concurrent.TimeUnit;
 import cugxdy.util.concurrent.TimeoutException;
 
 public interface Future<V> {
+	
 	// 它用来取消任务，如果取消任务成功则返回true，如果取消任务失败则返回false。
     boolean cancel(boolean mayInterruptIfRunning);
     // 它用来判断任务是否被取消成功，如果在任务正常完成前被取消成功，则返回 true。

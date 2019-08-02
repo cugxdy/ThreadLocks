@@ -16,10 +16,12 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import io.thread.test.MyRejectedExecutionHandler;
+
 public class MyThreadPoolExecutor extends AbstractExecutorService{
 
 	
-	private final AtomicInteger ctl = new AtomicInteger(ctlOf(0, 0));
+	private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
 	
 	private static final int COUNT_BITS = Integer.SIZE - 3;
 	
@@ -91,7 +93,7 @@ public class MyThreadPoolExecutor extends AbstractExecutorService{
 	
 	private volatile ThreadFactory threadFactory;
 	
-	private volatile RejectedExecutionHandler handler;
+	private volatile MyRejectedExecutionHandler handler;
 	
 	private volatile long keepAliveTime;
 	
@@ -256,9 +258,9 @@ public class MyThreadPoolExecutor extends AbstractExecutorService{
     }
     
     final void reject(Runnable runnable) {
-    	// handler.rejectedExecution(runnable, this);
-    	System.out.println("拒绝执行");
-    }
+    	handler.rejectedExecution(runnable, this);
+    	// System.out.println("任务被拒绝了 - "+ (MyRunnableTest)runnable.id);
+    } 
     
     void onShutdown() {
     }
@@ -543,7 +545,7 @@ public class MyThreadPoolExecutor extends AbstractExecutorService{
             TimeUnit unit,
             BlockingQueue<Runnable> workQueue,
             ThreadFactory threadFactory,
-            RejectedExecutionHandler handler) {
+            MyRejectedExecutionHandler handler) {
 		
         // 验证输入参数
     	if (corePoolSize < 0 ||
