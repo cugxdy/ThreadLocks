@@ -46,6 +46,7 @@ package cugxdy.util.concurrent;
  * @since 1.5
  * @author Doug Lea
  */
+// 对于获取锁超时异常
 public class TimeoutException extends Exception {
     private static final long serialVersionUID = 1900926677490660714L;
 
