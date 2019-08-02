@@ -1241,7 +1241,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             int wc = workerCountOf(c);
 
             // Are workers subject to culling?
-            // timed 变量用于判断是否需要进行超时控制。
+            // timed 变量用于判断是否需要进行超时控制。0
             // allowCoreThreadTimeOut 默认是false，也就是核心线程不允许进行超时；
             // wc > corePoolSize，表示当前线程池中的线程数量大于核心线程数量；
             // 对于超过核心线程数量的这些线程，需要进行超时控制
