@@ -99,6 +99,7 @@ import cugxdy.util.concurrent.TimeUnit;
  * @since 1.5
  * @author Doug Lea
  */
+// 定义了定时任务的规范
 public interface ScheduledExecutorService extends ExecutorService {
 
     /**
