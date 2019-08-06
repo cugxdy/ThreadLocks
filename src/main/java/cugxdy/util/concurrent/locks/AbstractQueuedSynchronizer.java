@@ -1459,6 +1459,7 @@ public abstract class AbstractQueuedSynchronizer
     	// 判断线程是否为中断状态
         if (Thread.interrupted())
             throw new InterruptedException();
+        // 当返回为负数时,即需要进入同步队列中
         if (tryAcquireShared(arg) < 0)
             doAcquireSharedInterruptibly(arg);
     }
