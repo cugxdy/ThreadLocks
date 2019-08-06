@@ -325,6 +325,7 @@ public class CountDownLatch {
      *
      * @return a string identifying this latch, as well as its state
      */
+    // ·µ»ØString¶ÔÏó
     public String toString() {
         return super.toString() + "[Count = " + sync.getCount() + "]";
     }
