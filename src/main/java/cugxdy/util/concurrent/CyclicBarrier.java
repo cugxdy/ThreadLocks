@@ -141,6 +141,7 @@ import cugxdy.util.concurrent.locks.ReentrantLock;
  *
  * @author Doug Lea
  */
+// 就如同赛车比赛中,需要等待几个线程同时到达,才可以开始跑
 public class CyclicBarrier {
     /**
      * Each use of the barrier is represented as a generation instance.
@@ -158,13 +159,20 @@ public class CyclicBarrier {
     }
 
     /** The lock for guarding barrier entry */
+    // 锁资源
     private final ReentrantLock lock = new ReentrantLock();
+    
     /** Condition to wait on until tripped */
+    // 锁资源的同步队列
     private final Condition trip = lock.newCondition();
+    
     /** The number of parties */
+    // 需要几个参与者,相当于副本中需要几个人才可以开始打
     private final int parties;
+    
     /* The command to run when tripped */
     private final Runnable barrierCommand;
+    
     /** The current generation */
     private Generation generation = new Generation();
 
@@ -173,17 +181,23 @@ public class CyclicBarrier {
      * on each generation.  It is reset to parties on each new
      * generation or when broken.
      */
+    // 还需要多少参与者
     private int count;
 
     /**
      * Updates state on barrier trip and wakes up everyone.
      * Called only while holding lock.
      */
+    // 下一次轮回
     private void nextGeneration() {
         // signal completion of last generation
+    	// 唤醒所有的对象
         trip.signalAll();
+        
         // set up next generation
         count = parties;
+        
+        // 创建Generation对象
         generation = new Generation();
     }
 
@@ -194,6 +208,7 @@ public class CyclicBarrier {
     private void breakBarrier() {
         generation.broken = true;
         count = parties;
+        // 获取阻塞线程
         trip.signalAll();
     }
 
@@ -208,9 +223,11 @@ public class CyclicBarrier {
         try {
             final Generation g = generation;
 
+            // 当为true时,即抛出BrokenBarrierException异常
             if (g.broken)
                 throw new BrokenBarrierException();
 
+            // 判断线程是否已经中断过
             if (Thread.interrupted()) {
                 breakBarrier();
                 throw new InterruptedException();
@@ -220,6 +237,7 @@ public class CyclicBarrier {
             if (index == 0) {  // tripped
                 boolean ranAction = false;
                 try {
+                	// 获取任务
                     final Runnable command = barrierCommand;
                     if (command != null)
                         command.run();
@@ -235,10 +253,11 @@ public class CyclicBarrier {
             // loop until tripped, broken, interrupted, or timed out
             for (;;) {
                 try {
+                	// timed是否以指定时间阻塞线程
                     if (!timed)
-                        trip.await();
+                        trip.await(); // 阻塞自己,直至被唤醒或者被中断
                     else if (nanos > 0L)
-                        nanos = trip.awaitNanos(nanos);
+                        nanos = trip.awaitNanos(nanos); // 阻塞指定时间
                 } catch (InterruptedException ie) {
                     if (g == generation && ! g.broken) {
                         breakBarrier();
@@ -247,11 +266,13 @@ public class CyclicBarrier {
                         // We're about to finish waiting even if we had not
                         // been interrupted, so this interrupt is deemed to
                         // "belong" to subsequent execution.
+                    	// 中断线程
                         Thread.currentThread().interrupt();
                     }
                 }
 
                 if (g.broken)
+                	// 抛出BrokenBarrierException异常
                     throw new BrokenBarrierException();
 
                 if (g != generation)
@@ -259,6 +280,7 @@ public class CyclicBarrier {
 
                 if (timed && nanos <= 0L) {
                     breakBarrier();
+                    // 超时异常
                     throw new TimeoutException();
                 }
             }
@@ -279,6 +301,7 @@ public class CyclicBarrier {
      *        tripped, or {@code null} if there is no action
      * @throws IllegalArgumentException if {@code parties} is less than 1
      */
+    // 创建CyclicBarrier对象
     public CyclicBarrier(int parties, Runnable barrierAction) {
         if (parties <= 0) throw new IllegalArgumentException();
         this.parties = parties;
@@ -304,6 +327,7 @@ public class CyclicBarrier {
      *
      * @return the number of parties required to trip this barrier
      */
+    // 获取parties对象
     public int getParties() {
         return parties;
     }
@@ -362,6 +386,7 @@ public class CyclicBarrier {
      *         broken when {@code await} was called, or the barrier
      *         action (if present) failed due to an exception
      */
+    // 阻塞等待线程
     public int await() throws InterruptedException, BrokenBarrierException {
         try {
             return dowait(false, 0L);
@@ -433,6 +458,7 @@ public class CyclicBarrier {
      *         when {@code await} was called, or the barrier action (if
      *         present) failed due to an exception
      */
+    // 阻塞指定时间
     public int await(long timeout, TimeUnit unit)
         throws InterruptedException,
                BrokenBarrierException,
@@ -448,6 +474,7 @@ public class CyclicBarrier {
      *         construction or the last reset, or a barrier action
      *         failed due to an exception; {@code false} otherwise.
      */
+    // 判断是否已经被打破
     public boolean isBroken() {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -467,6 +494,7 @@ public class CyclicBarrier {
      * and choose one to perform the reset.  It may be preferable to
      * instead create a new barrier for subsequent use.
      */
+    // 重置该对象
     public void reset() {
         final ReentrantLock lock = this.lock;
         lock.lock();
@@ -484,6 +512,7 @@ public class CyclicBarrier {
      *
      * @return the number of parties currently blocked in {@link #await}
      */
+    // 获取目前等待的线程数
     public int getNumberWaiting() {
         final ReentrantLock lock = this.lock;
         lock.lock();
