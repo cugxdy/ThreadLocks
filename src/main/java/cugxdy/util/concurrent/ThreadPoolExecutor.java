@@ -1867,7 +1867,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * Same as prestartCoreThread except arranges that at least one
      * thread is started even if corePoolSize is 0.
      */
-    // 重启一个线程
+    // 重启一个线程(去开启线程去跑队列中的任务)
     void ensurePrestart() {
         int wc = workerCountOf(ctl.get());
         if (wc < corePoolSize)
